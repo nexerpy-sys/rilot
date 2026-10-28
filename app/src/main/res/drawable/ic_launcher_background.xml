@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Pure obsidian black background matching the app theme -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="12"
+                android:endX="90"
+                android:endY="96"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF0D1412" />
+                <item android:offset="0.45" android:color="#FF070A09" />
+                <item android:offset="1.0" android:color="#FF030405" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Subtle dark emerald cyber-grid aura in background -->
+    <path
+        android:fillColor="#1410B981"
+        android:pathData="M54,18 C73.88,18 90,34.12 90,54 C90,73.88 73.88,90 54,90 C34.12,90 18,73.88 18,54 C18,34.12 34.12,18 54,18 Z M54,20 C35.22,20 20,35.22 20,54 C20,72.78 35.22,88 54,88 C72.78,88 88,72.78 88,54 C88,35.22 72.78,20 54,20 Z" />
+</vector>

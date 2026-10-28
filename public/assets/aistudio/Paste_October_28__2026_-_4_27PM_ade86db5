@@ -1,0 +1,725 @@
+Rilot Phase 3 — Complete Migration from Cloudflare to Google Apps Script
+
+Continue modifying the EXISTING Rilot Android project in place. The latest project has completed Phase 2.1 correctness and security corrections. This is a backend architecture migration, not a rebuild.
+
+PRIMARY OBJECTIVE
+
+Replace the active Cloudflare Worker + D1 backend with a Google Apps Script Web App + Google Sheets backend.
+
+Keep GitHub Actions as the Python automation runner.
+
+The final architecture must be:
+
+Android Rilot app → Google Apps Script Web App → GitHub Actions → existing Python automation engine.
+
+The Python engine reports its results back to Google Apps Script, which persists them in Google Sheets and makes them available to the Android app.
+
+The project owner wants a personal, zero-cost setup using existing Google and GitHub accounts. Do not require Cloudflare, a VPS, a rented server, a credit/debit card, or a paid hosting plan.
+
+This migration must preserve the existing Android project and its implemented functionality wherever possible.
+
+Do not merely produce a migration plan. Inspect the source code, implement the changes, run the available tests, and return the complete updated project.
+
+---
+
+1. MANDATORY PRESERVATION RULES
+
+Before editing, inspect the entire repository, including:
+
+- The Android application under "app/".
+- Existing Kotlin models, DTOs, Retrofit API definitions, repositories, ViewModels and Room database.
+- "backend/python-engine/".
+- ".github/workflows/insta-automation-cycle.yml".
+- The latest security and concurrency corrections.
+- Existing unit tests and the backend setup guide.
+- The current Rilot application ID, navigation, UI, visual theme and Gradle configuration.
+
+Preserve the following without unnecessary changes:
+
+- App name: Rilot.
+- Existing Android application ID.
+- Kotlin and Jetpack Compose architecture.
+- Existing screens, navigation, theme, colors, typography, animations and layouts.
+- Discovery settings and multi-signal candidate selection.
+- Fixed-caption library and caption rotation.
+- Scheduling settings and Asia/Kolkata timezone behaviour.
+- Activity history, dashboard and safe retry.
+- Python bounded execution, structured results and existing automation engine.
+- GitHub Actions scheduling, manual execution and workflow inputs.
+- Fail-closed content authorization and explicit authorization provenance.
+- Deduplication, idempotency, "IN_FLIGHT_AMBIGUOUS" protection and targeted retry isolation.
+- Cycle lock ownership, rate limiting and replay protection.
+- Existing local Room storage, cached status and offline behaviour.
+- Current Instagram session handling and other existing credential procedures.
+
+Do not rebuild the UI, change the application ID, remove features, weaken security controls, or rewrite the Python engine from scratch.
+
+Do not change unrelated code merely to make the migration easier.
+
+2. TARGET ARCHITECTURE
+
+A. Android application
+
+Rilot remains the user's control panel.
+
+Its existing screens must manage:
+
+- Automation status and controls.
+- Discovery settings and candidate limits.
+- Hashtags and explicit authorization policies.
+- Caption creation, editing, categorization and rotation.
+- Posting schedule and limits.
+- Dry-run and live-publishing controls.
+- Activity history, error details and safe retry.
+- Connection configuration and backend diagnostics.
+
+The Android application must communicate with Google Apps Script through HTTPS.
+
+The app must not execute the continuous Python automation engine locally. The phone is not required to stay switched on for scheduled automation.
+
+B. Google Apps Script backend
+
+Create a new directory:
+
+"backend/google-apps-script/"
+
+Include the actual Apps Script source files, manifest, tests or testable logic, setup instructions, and deployment documentation.
+
+Google Apps Script is responsible for:
+
+- Authenticating app and engine requests.
+- Storing configuration and activity data.
+- Maintaining caption and discovery settings.
+- Dispatching authorized GitHub Actions workflows.
+- Returning dashboard status and activity.
+- Processing engine reports.
+- Enforcing idempotency and durable ownership of dispatched jobs.
+- Protecting settings and privileged GitHub credentials.
+- Rejecting unauthorized commands and invalid configuration.
+
+Google Apps Script must NOT attempt to download videos, perform video processing, scrape large content pools, or run the continuous Python scheduler.
+
+Those tasks remain in GitHub Actions and the Python engine. The Apps Script backend should perform short API operations that fit within the account's execution quotas.
+
+C. GitHub Actions
+
+GitHub Actions remains responsible for:
+
+- Scheduled automation cycles.
+- Manual execution requests.
+- Bounded Python execution.
+- Candidate discovery and scoring.
+- Downloading authorized candidate media.
+- Caption selection.
+- Publishing eligible content.
+- Persisting and restoring the Python engine's deduplication state.
+- Reporting success, failure and unresolved status to Google Apps Script.
+
+The workflow must continue to run when the phone is offline or switched off.
+
+Retain the existing workflow schedule unless a concrete integration problem requires modification. Document that GitHub cron schedules use UTC and ensure the Python engine's Asia/Kolkata posting-window enforcement remains authoritative.
+
+---
+
+3. IMPLEMENT THE GOOGLE APPS SCRIPT BACKEND
+
+Implement a complete Apps Script Web App, not placeholder source code.
+
+Suggested files:
+
+- "Code.gs" — Web App entry points and action router.
+- "Auth.gs" — request authentication, roles, timestamp and nonce validation.
+- "Storage.gs" — Google Sheets persistence and schema initialization.
+- "GitHubDispatch.gs" — validated GitHub workflow dispatch.
+- "EngineApi.gs" — engine configuration responses and result reporting.
+- "Validation.gs" — common schema, input and configuration validation.
+- "appsscript.json" — required runtime settings and least-privilege OAuth scopes.
+- "README_SETUP.md" — complete deployment and configuration instructions.
+
+Split these into separate files if useful, but keep the implementation maintainable.
+
+3.1 Web App request handling
+
+Apps Script Web Apps use "doGet(e)" and "doPost(e)" rather than a conventional server with arbitrary REST route handlers.
+
+Create a consistent JSON RPC-style API using "doPost(e)" and a required "action" field.
+
+All read and write operations involving settings, controls, captions, retries, status and engine reports should use authenticated POST requests rather than placing credentials in URL query strings.
+
+Use a request envelope similar to:
+
+{
+"action": "app.getStatus",
+"authToken": "...",
+"timestamp": 0,
+"nonce": "...",
+"requestId": "...",
+"payload": {}
+}
+
+The names above illustrate the contract; implement a consistent, documented schema.
+
+Support distinct action namespaces for the Android app and the Python engine. The app must not be able to call privileged engine-report or arbitrary GitHub dispatch operations simply by changing the "action" string.
+
+Validate request size, field types, required fields, permitted values and identifier formats. Reject malformed JSON and unknown actions safely.
+
+Use "ContentService" to return JSON.
+
+Apps Script does not provide a conventional mechanism to set arbitrary HTTP response status codes through "ContentService". Therefore, return explicit application-level results such as:
+
+- "ok"
+- "code"
+- "message"
+- "data"
+- "requestId"
+
+Update the Android client and tests to interpret those result fields correctly rather than assuming all API errors will arrive as HTTP 4xx or 5xx responses.
+
+Handle errors internally without returning stack traces, access tokens, sensitive environment details or raw GitHub API credentials.
+
+3.2 Required app actions
+
+Implement real persistence and behaviour for these logical actions:
+
+- "app.getStatus"
+- "app.setControl"
+- "app.getDiscoveryConfig"
+- "app.updateDiscoveryConfig"
+- "app.getScheduleConfig"
+- "app.updateScheduleConfig"
+- "app.getCaptions"
+- "app.updateCaptions"
+- "app.getActivity"
+- "app.safeRetry"
+- "app.connectionTest"
+
+Define additional actions where necessary, but do not leave existing app buttons connected only to local simulation.
+
+For control changes, validate each command and its permitted state transition.
+
+The start, pause, resume, dry-run and retry controls must cause real backend changes. A successful API response must not falsely claim that an automation job has completed when it has only been queued.
+
+Return an explicit state such as "DISPATCHED", "QUEUED", "RUNNING", "PAUSED", "COMPLETED", "FAILED" or "UNKNOWN" as appropriate.
+
+3.3 Required engine actions
+
+Implement authenticated actions for:
+
+- "engine.getConfig"
+- "engine.acquireCycle" or an equivalent safe cycle-ownership operation where necessary.
+- "engine.report"
+- "engine.heartbeat", if used.
+- "engine.getRetryTarget", if required by the existing retry design.
+
+The Python engine must retrieve its current configuration from the backend at the start of every execution, including authorization policy, pause state, dry-run state, schedule limits, caption configuration and the explicitly permitted discovery sources.
+
+Engine reports must update the activity history and execution status using the existing structured result schema.
+
+Never return app-only administrative credentials, GitHub tokens, Instagram session data, or other privileged values in an engine configuration response.
+
+---
+
+4. REPLACE CLOUDFLARE D1 WITH GOOGLE SHEETS
+
+Create a durable Google Sheets storage layer.
+
+Include documented sheet schemas and versioned or otherwise idempotent initialization.
+
+Suggested spreadsheet tabs:
+
+1. "Settings" — active discovery, schedule, control and authorization configuration.
+2. "Captions" — caption ID, content, category, enabled state, last-used timestamp and creation metadata.
+3. "Activity" — Reel identifier, operation, outcome, timestamps, authorization provenance, retry status, error details and run metadata.
+4. "ProcessedItems" — processed Reel identifiers and duplicate-prevention state.
+5. "Requests" — idempotency keys and request outcomes.
+6. "Cycles" — cycle identifier, dispatch status, lock owner, timestamps and execution state.
+7. "Nonces" — request nonce, caller role and timestamp for replay protection.
+8. "RateLimits" — caller identifier, window start and request count.
+
+Adapt the names and columns to the actual data models instead of duplicating existing data unnecessarily.
+
+Requirements:
+
+- Keep a configurable spreadsheet ID in Apps Script Script Properties.
+- Provide a documented initialization function that creates or initializes the required spreadsheet and tabs.
+- Never assume that the spreadsheet ID in sample code is real.
+- Keep the existing Android Room database as a local cache, not the authoritative remote database.
+- Handle missing tabs, header changes, malformed rows and partial initialization safely.
+- Use batch reads and writes where practical.
+- Bound activity-history queries and implement pagination or a cursor when necessary.
+- Keep the processed-item lookup and safe retry lookup independent of a limited recent-activity page.
+- Do not lose a Reel's deduplication status simply because an activity page is truncated.
+
+Use "LockService.getScriptLock()" to protect short, critical sequences that update related spreadsheet rows.
+
+Use locks for nonce insertion, idempotency records, cycle-lock ownership, concurrent dispatch checks and control-state changes.
+
+Never hold a script lock while waiting for a long external operation such as a GitHub API request.
+
+Because Apps Script locks, execution quotas and Sheets operations behave differently from D1, implement suitable equivalent logic rather than translating SQL mechanically.
+
+Use conditional updates and ownership checks so that stale reports cannot delete or overwrite a newer cycle's state.
+
+Remove all active assumptions about D1 tables, Cloudflare bindings, Cloudflare Worker storage and SQLite-backed D1 production services.
+
+SQLite may remain in the Python engine for local or cached deduplication where it is already appropriate.
+
+---
+
+5. AUTHENTICATION AND CREDENTIAL HANDLING
+
+The app is intended for one personal user, but credentials must still be handled deliberately.
+
+Use HTTPS for all requests.
+
+5.1 Separate the credentials
+
+Use separate keys for:
+
+- "RILOT_APP_API_KEY" — access for the Android control panel.
+- "RILOT_ENGINE_API_KEY" — access for GitHub Actions and the Python engine.
+- "GITHUB_PAT" — privileged GitHub workflow-dispatch credential stored exclusively in Apps Script Script Properties.
+
+Also configure:
+
+- "GITHUB_OWNER"
+- "GITHUB_REPO"
+- "GITHUB_BRANCH"
+- "GITHUB_WORKFLOW_FILE"
+- "RILOT_SPREADSHEET_ID"
+
+Do not use the GitHub PAT as the Android API key or Python engine key.
+
+Do not put "GITHUB_PAT" or Instagram session credentials in Android source code, BuildConfig, the APK, the committed repository, API responses or log output.
+
+The app API key is a separate, deliberately scoped credential. It may be entered by the owner in a backend-connection setup screen and stored locally using Android Keystore-backed encryption. Do not hardcode it into the APK.
+
+The engine key must be available to the Python workflow through a GitHub Actions Secret and to Apps Script through Script Properties.
+
+Do not return any key to the client after a successful authentication check.
+
+5.2 Apps Script authentication implementation
+
+Since Apps Script Web App event objects do not expose arbitrary incoming HTTP headers like a conventional web server, implement a consistent JSON-body authentication contract.
+
+- Require the appropriate key for the caller's role.
+- Use a constant-time comparison where practical.
+- Require a well-formed timestamp, nonce and request ID.
+- Reject timestamps outside a short configurable replay window.
+- Record accepted nonces durably and reject repeats, including concurrent duplicates.
+- Purge expired nonce records safely.
+- Never put authentication keys in URLs, spreadsheet cells, or logs.
+- Reject app attempts to invoke engine-only actions.
+- Reject engine attempts to change administrative configuration unless explicitly permitted.
+- Limit requests per role and reject unauthorized or excessive dispatch attempts.
+- Do not claim a client-held API key is impossible to extract; document revocation and rotation procedures.
+
+All privileged GitHub actions must be validated on the server, even if the APK is only installed on one phone.
+
+Do not transmit "ScriptApp.getOAuthToken()" or any other broad Google OAuth token to the Android application.
+
+5.3 Apps Script deployment mode
+
+Document the deployment procedure for a Google Apps Script Web App that executes as its owner.
+
+Where the user's account permits it, the intended configuration is an HTTPS Web App accessible to the Android app, with application-level authentication enforced by the script.
+
+Never assume the "/exec" deployment URL is known before deployment. The owner must supply the actual deployed URL in the app's connection configuration.
+
+Do not silently make the spreadsheet or the script source publicly editable.
+
+If account-level deployment restrictions prevent the chosen access configuration, explain the limitation and give the exact supported alternative instead of silently weakening security.
+
+---
+
+6. IMPLEMENT GITHUB WORKFLOW DISPATCH THROUGH APPS SCRIPT
+
+Google Apps Script must dispatch GitHub Actions using GitHub's official REST API.
+
+Reference:
+https://docs.github.com/en/rest/actions/workflows
+
+The GitHub PAT must remain in Apps Script Script Properties.
+
+Use a narrowly scoped fine-grained GitHub token, restricted to the user's own private Rilot repository, with the permissions required to dispatch the workflow.
+
+Requirements:
+
+- Validate "GITHUB_OWNER", "GITHUB_REPO", "GITHUB_BRANCH" and "GITHUB_WORKFLOW_FILE" before dispatch.
+- Reject missing values, malformed configuration, placeholder names and the upstream template repository "najinkya776/InstaAutomation".
+- Do not allow Android request payloads to override the configured owner, repo, branch or workflow.
+- Use the configured workflow filename and branch when calling the GitHub workflow dispatch endpoint.
+- Support the workflow's actual declared inputs, including command, dry-run, Reel PK, idempotency token and lock owner ID where appropriate.
+- Validate all inputs against the workflow definition and accepted command set.
+- Handle GitHub API failures, permission errors, timeouts and unsuccessful responses without claiming a job was started.
+- Persist a dispatch record before invoking GitHub, update it afterward, and recover safely from an uncertain dispatch outcome.
+- Use a unique idempotency identifier for each user action.
+- Prevent repeated taps or retries from creating duplicate workflow dispatches.
+- Never accept an arbitrary URL supplied by the client for the GitHub request.
+
+Preserve the current manual and scheduled workflow triggers in ".github/workflows/insta-automation-cycle.yml".
+
+The Python runner must continue to perform one bounded cycle and exit. Do not move Python video downloading, scraping, or publishing into Google Apps Script.
+
+---
+
+7. REPLACE THE ANDROID CLOUDFLARE API CLIENT
+
+Update the existing Android integration instead of building another client from scratch.
+
+Inspect:
+
+- "CloudflareWorkerApi.kt"
+- "CloudflareWorkerApi.kt"'s associated Retrofit configuration and converters.
+- "WorkerEndpointConfig.kt"
+- "RilotRepository.kt"
+- Relevant ViewModels, DTOs and models.
+- Any Cloudflare gateway dialogs or connection screens.
+
+Rename Cloudflare-specific classes where appropriate to accurately represent the new Apps Script backend, updating every call site consistently. Preserve compatibility where a class is deeply integrated and a complete rename would create unnecessary risk.
+
+7.1 RPC request contract
+
+Replace route-based Cloudflare calls with the documented Apps Script POST request envelope.
+
+Use an appropriate Kotlin request model with fields for action, authentication token, timestamp, nonce, request ID and payload.
+
+Keep request and response types explicit and validate all responses.
+
+Do not send credentials in query parameters.
+
+Ensure the Android HTTP client follows Google's Apps Script Web App redirects appropriately. Handle response bodies, unexpected content types and JSON errors explicitly.
+
+Since the Apps Script API returns application-level result codes in JSON, update the repository to parse those codes consistently.
+
+7.2 Connection configuration
+
+Add or adapt the existing backend connection screen to support:
+
+- The deployed Apps Script "/exec" URL.
+- The personal Rilot API key entered by the owner.
+- A connection-test button.
+- A clear connected, disconnected or authentication-failed status.
+- A way to replace the URL or rotate the key.
+- A safe way to disconnect and clear the locally stored key.
+
+Store the URL as ordinary configuration and the API key using Android Keystore-backed encryption where practical.
+
+Do not display the full API key after saving.
+
+Do not include the Apps Script deployment URL or secret credentials in code samples as though real values are already known.
+
+7.3 Keep the existing UI
+
+Wire the current dashboard, discovery, schedule, caption, activity, retry and control functions to real Apps Script actions.
+
+Keep existing local Room caching and offline behaviour.
+
+Clearly distinguish cached data, live server data and backend errors.
+
+Never increment fake counters or display simulated publication success as a real result.
+
+If the backend is disconnected, show the existing offline or error state and preserve available local settings.
+
+---
+
+8. CONNECT PYTHON AND GITHUB ACTIONS TO THE NEW BACKEND
+
+Modify the existing Python engine minimally.
+
+At the start of an execution, the workflow should provide:
+
+- The Apps Script deployment URL.
+- The engine API key from GitHub Actions Secrets.
+- The command and declared workflow inputs.
+- The idempotency token and lock owner ID, where applicable.
+
+Fetch the current backend configuration before discovery or publication.
+
+The engine must obey the server's pause state, current authorization configuration, dry-run setting, schedule limits, posting interval, daily cap and permitted content sources.
+
+If authentication fails or configuration cannot be fetched, do not silently fall back to stale configuration and publish content. Exit safely and report the failure where possible.
+
+Preserve the existing bounded "--once" execution, structured output file, targeted safe retry and authorization logic.
+
+8.1 Engine reporting
+
+After the run, report to Apps Script using the engine API credential.
+
+Include the actual run ID, execution outcome, processed items, publication outcome, errors, retry outcome and lock owner ID where applicable.
+
+Do not include secrets or session material in the report.
+
+For a run with no Worker-created lock owner, do not let its report release another run's lock.
+
+Retain lock ownership, deduplication and retry-safety rules from Phase 2.1.
+
+Do not blindly retry an upload with an ambiguous outcome.
+
+8.2 GitHub Actions configuration
+
+Update the existing workflow to retrieve its configuration and report results through Apps Script rather than Cloudflare.
+
+Use GitHub repository Secrets for the engine key and any credentials the Python engine needs.
+
+Use repository Variables or validated configuration for non-secret values where appropriate.
+
+Keep all privileged GitHub API tokens outside the APK. Do not echo secrets in workflow output.
+
+Keep the currently implemented session-handling arrangement unchanged unless a specific correctness defect requires a separate correction. This migration must not accidentally expose existing session material or add additional credential copies.
+
+Make sure the workflow remains compatible with manual dispatch and scheduled triggers.
+
+---
+
+9. REMOVE CLOUDFLARE FROM THE ACTIVE ARCHITECTURE
+
+Search the entire project for active references to:
+
+- Cloudflare Workers.
+- Cloudflare D1.
+- "wrangler.toml".
+- Cloudflare-specific endpoint URLs.
+- D1 SQL schema and bindings.
+- Worker engine-bundle endpoints.
+- Old API paths and deployment instructions.
+
+Update active code, configuration, tests, and documentation so no app operation depends on Cloudflare.
+
+Remove obsolete Cloudflare backend files or clearly isolate them as deprecated archival material outside the active build and deployment path.
+
+Do not remove useful, unrelated Python SQLite persistence.
+
+The final active architecture must not require a Cloudflare account or any Cloudflare deployment.
+
+Update all documentation to explain that:
+
+- Google Apps Script provides the control API and persistent remote settings.
+- Google Sheets holds backend state.
+- GitHub Actions runs the Python engine.
+- The Android application is the control panel.
+- The Python engine and privileged credentials are never embedded in the APK.
+
+Do not leave contradictory instructions that tell the owner to deploy a Worker or create D1 tables.
+
+---
+
+10. INITIAL CONFIGURATION AND SETUP GUIDE
+
+Rewrite "BACKEND_SETUP_GUIDE.md" for the new architecture.
+
+The guide must be suitable for a beginner using an Android phone and a browser, with no PC or VPS required.
+
+Give the exact steps in the correct order.
+
+Step 1 — GitHub repository
+
+The user's repository is "nexerpy-sys/rilot", with the active branch "main".
+
+Document how to verify that the full project, including the Python engine and ".github/workflows/insta-automation-cycle.yml", is pushed.
+
+Do not invent a repository URL or claim to have pushed changes remotely.
+
+Step 2 — Create the Google Apps Script project
+
+Explain how to create the script through the user's Google account, add or upload the generated source files, authorize the necessary Google services and initialize the backing spreadsheet.
+
+Provide a safe initialization procedure.
+
+Step 3 — Configure Script Properties
+
+Document the required keys, what each is used for, and which values must be generated or obtained manually:
+
+- "RILOT_APP_API_KEY"
+- "RILOT_ENGINE_API_KEY"
+- "GITHUB_PAT"
+- "GITHUB_OWNER"
+- "GITHUB_REPO"
+- "GITHUB_BRANCH"
+- "GITHUB_WORKFLOW_FILE"
+- "RILOT_SPREADSHEET_ID"
+
+Use the exact names consistently in the implementation.
+
+Do not supply fake secrets or tell the owner that placeholder credentials are valid.
+
+Explain how to create separate, unpredictable keys, enter them through the correct settings, rotate them and revoke them.
+
+The app key and engine key must be different.
+
+The GitHub PAT must never be entered into the Android app.
+
+Step 4 — Configure GitHub Actions
+
+Explain the required repository Secrets and Variables.
+
+At minimum, document how the workflow receives "RILOT_ENGINE_API_URL" and "RILOT_ENGINE_API_KEY" securely.
+
+List any other secrets required by the existing Python engine based on its actual source. Do not invent variables that the implementation doesn't use.
+
+Give the minimum required GitHub token permission for dispatching the configured workflow, scoped to the user's own repository.
+
+Step 5 — Deploy the Apps Script Web App
+
+Give the exact deployment menu steps, explain execute-as-owner permissions, and instruct the user to copy the real "/exec" URL.
+
+Do not ask the user to share any secrets or paste them into this conversation.
+
+Step 6 — Connect Rilot
+
+Explain where to enter the deployment URL and personal app API key in the Android app.
+
+Explain how to run the connection test.
+
+Step 7 — Dry-run verification
+
+Explain the sequence:
+
+1. Connect the app to Apps Script.
+2. Confirm the dashboard can fetch real configuration.
+3. Test settings persistence.
+4. Test caption creation and retrieval.
+5. Trigger a dry-run workflow.
+6. Verify that GitHub Actions actually starts.
+7. Confirm that Python retrieves its configuration.
+8. Confirm that the engine reports results to Apps Script.
+9. Verify activity history and cycle-lock cleanup.
+10. Confirm that dry-run never calls the actual Instagram publishing function.
+
+Only after these checks pass may the owner manually enable live publishing.
+
+Do not automatically enable live publishing, authorize publication of third-party content, or change authorization policies during migration.
+
+Step 8 — Troubleshooting
+
+Provide practical explanations for:
+
+- Apps Script authorization errors.
+- Incorrect or outdated "/exec" URL.
+- Script Properties missing or misconfigured.
+- Invalid API keys.
+- GitHub workflow dispatch permission errors.
+- Disabled workflow or wrong branch.
+- Apps Script quota limits.
+- GitHub Actions quota limits.
+- Missing spreadsheet permissions.
+- Stale cache or activity records.
+- Failed engine reports.
+- Schedule/timezone mismatches.
+
+Explain how to rotate credentials without exposing them in screenshots or logs.
+
+---
+
+11. TESTING REQUIREMENTS
+
+Create or update tests for the complete Apps Script backend and Android RPC contract.
+
+Do not rely on manual code inspection alone.
+
+Test at least:
+
+Authentication and API
+
+- Missing and incorrect app keys.
+- Missing and incorrect engine keys.
+- App attempts to call engine-only actions.
+- Engine attempts to change protected configuration.
+- Malformed JSON and unknown actions.
+- Expired timestamps and duplicate nonces.
+- Concurrent duplicate requests.
+- Sensitive-value redaction.
+
+Persistence
+
+- Create and read discovery settings.
+- Update and read scheduling settings.
+- Add, edit, enable, disable and retrieve captions.
+- Save activity and query it by Reel PK.
+- Persist and restore configuration across separate script invocations.
+- Initialize missing spreadsheet tabs safely.
+- Protect concurrent changes.
+
+GitHub dispatch
+
+- Successful workflow-dispatch request.
+- Missing repository configuration.
+- Placeholder or invalid repository values.
+- Invalid workflow file or branch.
+- Unauthorized target override attempts.
+- GitHub permission failure.
+- Repeated identical request or idempotency token.
+- Failed dispatch with safe lock cleanup.
+
+Python engine and workflow
+
+- Configuration retrieval from Apps Script.
+- Correctly bounded execution.
+- Paused automation does not publish.
+- Dry-run produces no actual Instagram upload.
+- Fail-closed authorization remains enforced.
+- Candidate collection limits remain independent from publishing limits.
+- Retry cannot fall back to ordinary discovery.
+- Ambiguous uploads are never blindly duplicated.
+- Reports retain the correct lock owner.
+- Stale reports cannot release newer locks.
+
+Android
+
+- The existing client compiles against the new contract.
+- Configuration saves remotely and survives app restart.
+- Live activity and backend errors are displayed accurately.
+- Cached data is labelled accurately while offline.
+- The API key is not hardcoded in source or APK configuration.
+- Existing navigation, theme and UI remain unchanged.
+
+Use a testable Apps Script abstraction or mock adapter for Google services rather than requiring a live deployment for every unit test.
+
+Never use live Instagram credentials in automated tests or publish actual content during testing.
+
+---
+
+12. FINAL DELIVERY AND HONEST VERIFICATION
+
+Implement the migration in the existing repository and return the complete updated project.
+
+At the end, produce a clear report containing:
+
+1. The main files created, updated and removed.
+2. Confirmation that active Cloudflare dependencies have been removed.
+3. The final API action contract.
+4. The Apps Script storage schema.
+5. The required Script Properties and GitHub Secrets.
+6. Commands actually executed and the true test results.
+7. Any Android build results that were actually obtained.
+8. Manual Google authorization and deployment tasks still required.
+9. Any remaining limitations that prevent end-to-end operation.
+10. Confirmation that dry-run remains enabled and live publishing remains disabled.
+
+Run the complete Python unit tests and compilation checks.
+
+Run all Cloudflare-independent backend tests and all available Apps Script tests.
+
+Run Android compilation and unit tests when the build environment permits.
+
+Do not claim a remote deployment, credential setup, Android build, GitHub dispatch, or external integration was completed unless it was actually performed and verified.
+
+Do not fabricate successful test results.
+
+DEFINITION OF DONE
+
+The migration is complete only when:
+
+- Rilot retains its existing Android UI and application ID.
+- The Android application uses Google Apps Script rather than a Cloudflare Worker.
+- Google Sheets provides persistent remote configuration, captions and activity.
+- GitHub Actions can retrieve the configuration, execute one bounded Python cycle and report the outcome.
+- Apps Script can dispatch the correct workflow securely.
+- GitHub credentials remain server-side.
+- The app's key is configurable, revocable and not hardcoded into the APK.
+- Safe retry, authorization, concurrency, idempotency and lock ownership remain intact.
+- All relevant tests pass.
+- The setup guide contains the exact steps needed for the owner to deploy the backend manually.
+- No live publishing is automatically enabled.
+
+Start by inspecting the existing project and identifying every Cloudflare-dependent call site. Then implement the migration, update the tests, verify the result and return the complete modified project.

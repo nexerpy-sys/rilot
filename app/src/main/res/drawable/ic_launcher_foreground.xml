@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- KALI HUNTER TACTICAL OUTER BROKEN RING (Deep Emerald #0D7A5B) -->
+    <path
+        android:fillColor="#FF0D7A5B"
+        android:pathData="M54,20 C65.5,20 75.7,25.7 81.8,34.5 L79.8,35.8 C74.1,27.6 64.7,22.3 54,22.3 C43.3,22.3 33.9,27.6 28.2,35.8 L26.2,34.5 C32.3,25.7 42.5,20 54,20 Z M26.5,69.5 L28.5,68.2 C33.5,75.5 41.6,80.5 51,81.4 L51,83.8 C40.8,82.8 32.0,77.4 26.5,69.5 Z M81.5,69.5 C76.0,77.4 67.2,82.8 57,83.8 L57,81.4 C66.4,80.5 74.5,75.5 79.5,68.2 L81.5,69.5 Z" />
+
+    <!-- LAYER 1: DEEP EMERALD SHADOW PINIONS & TRIBAL SHROUD (#096A4E) -->
+    <path
+        android:fillColor="#FF096A4E"
+        android:pathData="M48,47 C39,40 30,30 22,23 C24,31 29,39 36,45 C27,41 21,36 17,31 C20,39 27,46 36,50 C28,49 22,46 18,42 C22,49 30,54 39,55 C32,56 26,55 22,53 C27,59 35,61 43,60 L48,47 Z" />
+    <path
+        android:fillColor="#FF096A4E"
+        android:pathData="M60,47 C69,40 78,30 86,23 C84,31 79,39 72,45 C81,41 87,36 91,31 C88,39 81,46 72,50 C80,49 86,46 90,42 C86,49 78,54 69,55 C76,56 82,55 86,53 C81,59 73,61 65,60 L60,47 Z" />
+
+    <!-- LAYER 2: PRIMARY KALI-HUNTER SCIMITAR WING BLADES — LEFT (Cyber Emerald #10B981) -->
+    <!-- Blade L1 (Top Sweeping Primary Razor) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M50,43 C43,35 34,26 23,19 C25,27 32,36 41,43 C44,45 47,46 50,43 Z" />
+    <!-- Blade L2 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M48,46.5 C39,41 28,34 18,28 C21,36 30,43 40,48 C43,49.5 46,49 48,46.5 Z" />
+    <!-- Blade L3 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M47,50.5 C37,47 26,43 17,38.5 C21,45.5 31,51 41,53 C44,53.5 46,52.5 47,50.5 Z" />
+    <!-- Blade L4 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M46.5,54.5 C38,53 28,51 20,48 C25,54 34,57.5 43,57.5 C45,57.5 46,56 46.5,54.5 Z" />
+    <!-- Blade L5 (Lower Hooked Talon Spur) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M47,58 C40,58.5 33,58 26,56.5 C31,61 38,63 45,61.5 L41,67 C45,65 48,62 49.5,59 Z" />
+
+    <!-- LAYER 2: PRIMARY KALI-HUNTER SCIMITAR WING BLADES — RIGHT (Cyber Emerald #10B981) -->
+    <!-- Blade R1 (Top Sweeping Primary Razor) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M58,43 C65,35 74,26 85,19 C83,27 76,36 67,43 C64,45 61,46 58,43 Z" />
+    <!-- Blade R2 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M60,46.5 C69,41 80,34 90,28 C87,36 78,43 68,48 C65,49.5 62,49 60,46.5 Z" />
+    <!-- Blade R3 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M61,50.5 C71,47 82,43 91,38.5 C87,45.5 77,51 67,53 C64,53.5 62,52.5 61,50.5 Z" />
+    <!-- Blade R4 -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M61.5,54.5 C70,53 80,51 88,48 C83,54 74,57.5 65,57.5 C63,57.5 62,56 61.5,54.5 Z" />
+    <!-- Blade R5 (Lower Hooked Talon Spur) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M61,58 C68,58.5 75,58 82,56.5 C77,61 70,63 63,61.5 L67,67 C63,65 60,62 58.5,59 Z" />
+
+    <!-- LAYER 3: RAZOR-SHARP CYBER-MINT INNER PINION HIGHLIGHTS (#34D399) -->
+    <path
+        android:fillColor="#FF34D399"
+        android:pathData="M50,42 C44,35 36,27 26,21 C29,28 36,36 44,42 L50,42 Z M48,46 C40,41 31,35 22,30 C26,36 34,42 43,46.5 L48,46 Z M47,50 C39,47 30,44 22,40 C26,45 34,49.5 43,51.5 L47,50 Z" />
+    <path
+        android:fillColor="#FF34D399"
+        android:pathData="M58,42 C64,35 72,27 82,21 C79,28 72,36 64,42 L58,42 Z M60,46 C68,41 77,35 86,30 C82,36 74,42 65,46.5 L60,46 Z M61,50 C69,47 78,44 86,40 C82,45 74,49.5 65,51.5 L61,50 Z" />
+
+    <!-- LAYER 4: KALI DRAGON/PHOENIX PREDATOR HEAD, SWEPT HORN CREST, ARCHED NECK & WHIP TAIL (#34D399) -->
+    <!-- Swept 3-Horn Kali Crown Crest -->
+    <path
+        android:fillColor="#FF34D399"
+        android:pathData="M54,17 L56.5,25.5 L61,19.5 L58.5,28.5 L64,24 L59,32 L54,29.5 L49,32 L44,24 L49.5,28.5 L47,19.5 L51.5,25.5 Z" />
+
+    <!-- Fierce Kali-Style Raptor Head with Left-Striking Hooked Beak & Mandible -->
+    <path
+        android:fillColor="#FF6EE7B7"
+        android:pathData="M54,27 C57.5,27 60,29.5 60,33 C60,36 58,39 56.5,42 L51,42 C50.5,39.5 49,37.5 46,37 L42,38.5 C43.5,35.5 46,33.5 49,33 L44.5,32 C47,29 50.5,27 54,27 Z" />
+
+    <!-- Tribal Torso Armor & S-Curved Whip Tail Blades -->
+    <path
+        android:fillColor="#FF34D399"
+        android:pathData="M49.5,41 L58.5,41 L61,51 L57.5,61 L63,71 C59.5,69.5 57,66.5 55.8,63 C56.5,71 58.5,79 54,89 C49.5,79 51.5,71 52.2,63 C51,66.5 48.5,69.5 45,71 L50.5,61 L47,51 Z" />
+
+    <!-- Flanking Tribal Tail Scimitars (#10B981) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M50,60 C46,66 41,72 34,76 C38,70 42,63 46,57 Z M58,60 C62,66 67,72 74,76 C70,70 66,63 62,57 Z" />
+
+    <!-- LAYER 5: OBSIDIAN BLACK TRIBAL CUTOUTS & GLOWING MINT EYE/CORE (#050708 & #A7F3D0) -->
+    <!-- Predator Glowing Eye Slit -->
+    <path
+        android:fillColor="#FF050708"
+        android:pathData="M50,31.2 L55.5,30.2 L53.5,32.8 Z" />
+    <path
+        android:fillColor="#FFA7F3D0"
+        android:pathData="M51,31.3 L54.5,30.7 L53.2,32.2 Z" />
+
+    <!-- Negative-Space Tribal Spine Cutouts (Kali NetHunter style) -->
+    <path
+        android:fillColor="#FF050708"
+        android:pathData="M54,43 L57.5,48.5 L54,54 L50.5,48.5 Z M54,56.5 L56.2,60.5 L54,65 L51.8,60.5 Z" />
+
+    <!-- Glowing Cyber-Mint Core Flame inside Chest Cutout -->
+    <path
+        android:fillColor="#FFA7F3D0"
+        android:pathData="M54,45.2 L56,48.5 L54,51.8 L52,48.5 Z" />
+</vector>

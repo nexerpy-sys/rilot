@@ -1,0 +1,186 @@
+name: Rilot Instagram Automation Cycle
+
+on:
+  schedule:
+    # Runs every 6 hours aligned with Asia/Kolkata (IST) windows
+    - cron: '30 3,9,15,21 * * *'
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Execution command (START_CYCLE, DRY_RUN_CYCLE, SAFE_RETRY)'
+        required: false
+        default: 'DRY_RUN_CYCLE'
+        type: choice
+        options:
+          - DRY_RUN_CYCLE
+          - START_CYCLE
+          - SAFE_RETRY
+      dry_run:
+        description: 'Force dry-run mode (discover & score without live clip_upload)'
+        required: false
+        default: 'true'
+        type: string
+      retry_pk:
+        description: 'Optional Reel PK to retry idempotently'
+        required: false
+        default: ''
+        type: string
+      idempotency_token:
+        description: 'Optional idempotency token for safe retry'
+        required: false
+        default: ''
+        type: string
+      lock_owner_id:
+        description: 'Optional cycle lock owner ID issued by Google Apps Script'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: rilot-instagram-automation-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  automation-cycle:
+    name: Bounded Reel Discovery & Publishing (IST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Kolkata
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/python-engine/requirements.txt
+
+      - name: Install Python Dependencies
+        working-directory: backend/python-engine
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore SQLite posted.db & Session Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/python-engine/posted.db
+            backend/python-engine/session.json
+          key: rilot-state-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            rilot-state-${{ runner.os }}-
+
+      - name: Bootstrap Instagram Session from Encrypted GitHub Secret
+        working-directory: backend/python-engine
+        env:
+          IG_SESSION_JSON_B64: ${{ secrets.IG_SESSION_JSON_B64 }}
+        run: |
+          if [ ! -f session.json ] && [ -n "$IG_SESSION_JSON_B64" ]; then
+            echo "$IG_SESSION_JSON_B64" | base64 --decode > session.json
+            chmod 600 session.json
+            echo "Restored session.json from IG_SESSION_JSON_B64 secret."
+          fi
+
+      - name: Retrieve Active Configuration & Deduplication State from Google Apps Script
+        working-directory: backend/python-engine
+        env:
+          RILOT_ENGINE_API_URL: ${{ secrets.RILOT_ENGINE_API_URL }}
+          RILOT_ENGINE_API_KEY: ${{ secrets.RILOT_ENGINE_API_KEY }}
+          INPUT_RETRY_PK: ${{ inputs.retry_pk }}
+        run: |
+          FETCH_ARGS=(--fetch-config-to /tmp/rilot_bundle.json)
+          if [ -n "$INPUT_RETRY_PK" ]; then
+            FETCH_ARGS+=(--retry-pk "$INPUT_RETRY_PK")
+          fi
+          python main.py "${FETCH_ARGS[@]}"
+
+      - name: Execute Single Bounded Automation Cycle
+        id: run_engine
+        working-directory: backend/python-engine
+        env:
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+          RILOT_ENGINE_API_URL: ${{ secrets.RILOT_ENGINE_API_URL }}
+          RILOT_ENGINE_API_KEY: ${{ secrets.RILOT_ENGINE_API_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_COMMAND: ${{ inputs.command }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_RETRY_PK: ${{ inputs.retry_pk }}
+          INPUT_IDEMPOTENCY_TOKEN: ${{ inputs.idempotency_token }}
+          INPUT_LOCK_OWNER_ID: ${{ inputs.lock_owner_id }}
+        run: |
+          ARGS=(--once --require-remote-config --config-json /tmp/rilot_bundle.json --output-json cycle_result.json)
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            ARGS+=(--force-manual)
+          fi
+          if [ -n "$INPUT_COMMAND" ]; then
+            ARGS+=(--command "$INPUT_COMMAND")
+          fi
+          if [ "$INPUT_DRY_RUN" = "true" ] || [ "$INPUT_COMMAND" = "DRY_RUN_CYCLE" ]; then
+            ARGS+=(--dry-run)
+          fi
+          if [ "$INPUT_COMMAND" = "SAFE_RETRY" ] || [ -n "$INPUT_RETRY_PK" ]; then
+            if [ -z "$INPUT_RETRY_PK" ]; then
+              echo "::error::SAFE_RETRY requires a non-empty retry_pk workflow input. Refusing to fall back to discovery."
+              exit 1
+            fi
+            if ! [[ "$INPUT_RETRY_PK" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+              echo "::error::Invalid retry_pk format."
+              exit 1
+            fi
+            ARGS+=(--retry-pk "$INPUT_RETRY_PK")
+          fi
+          if [ -n "$INPUT_IDEMPOTENCY_TOKEN" ]; then
+            ARGS+=(--idempotency-token "$INPUT_IDEMPOTENCY_TOKEN")
+          fi
+          if [ -n "$INPUT_LOCK_OWNER_ID" ]; then
+            if ! [[ "$INPUT_LOCK_OWNER_ID" =~ ^[A-Za-z0-9_.:-]{6,128}$ ]]; then
+              echo "::error::Invalid lock_owner_id format."
+              exit 1
+            fi
+            ARGS+=(--lock-owner-id "$INPUT_LOCK_OWNER_ID")
+          fi
+          python main.py "${ARGS[@]}"
+
+      - name: Report Failure Telemetry to Google Apps Script (If Engine Step Failed Without Reporting)
+        if: failure()
+        working-directory: backend/python-engine
+        env:
+          RILOT_ENGINE_API_URL: ${{ secrets.RILOT_ENGINE_API_URL }}
+          RILOT_ENGINE_API_KEY: ${{ secrets.RILOT_ENGINE_API_KEY }}
+          INPUT_COMMAND: ${{ inputs.command }}
+          INPUT_RETRY_PK: ${{ inputs.retry_pk }}
+          INPUT_LOCK_OWNER_ID: ${{ inputs.lock_owner_id }}
+        run: |
+          if [ ! -f cycle_result.json ]; then
+            FAIL_ARGS=(--report-failure --failure-message "GitHub Actions workflow failed before cycle_result.json was written.")
+            if [ -n "$INPUT_COMMAND" ]; then
+              FAIL_ARGS+=(--command "$INPUT_COMMAND")
+            fi
+            if [ -n "$INPUT_RETRY_PK" ]; then
+              FAIL_ARGS+=(--retry-pk "$INPUT_RETRY_PK")
+            fi
+            if [ -n "$INPUT_LOCK_OWNER_ID" ]; then
+              FAIL_ARGS+=(--lock-owner-id "$INPUT_LOCK_OWNER_ID")
+            fi
+            python main.py "${FAIL_ARGS[@]}"
+          fi
+
+      - name: Upload Cycle Telemetry Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rilot-cycle-telemetry-${{ github.run_id }}
+          path: |
+            backend/python-engine/cycle_result.json
+            backend/python-engine/automation.log
+          retention-days: 14

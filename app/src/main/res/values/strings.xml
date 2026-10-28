@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Rilot</string>
+    <string name="dashboard_title">Control Center</string>
+    <string name="discovery_title">Discovery</string>
+    <string name="captions_title">Captions</string>
+    <string name="scheduling_title">Schedule</string>
+    <string name="activity_title">Activity</string>
+    <string name="mock_mode_banner">MOCK PREVIEW MODE — UI preview data. Connect Google Apps Script to control live GitHub Actions.</string>
+    <string name="offline_cached_banner">BACKEND UNREACHABLE — Displaying last known status cached on device.</string>
+    <string name="auth_expired_banner">INSTAGRAM AUTH EXPIRED — Session cookie / 2FA renewal required in GitHub Secrets.</string>
+    <string name="live_connected_banner">GOOGLE APPS SCRIPT CONNECTED — Synced with remote automation state.</string>
+    <string name="dry_run_active_badge">DRY-RUN ACTIVE</string>
+    <string name="auto_publish_disabled_badge">AUTO-PUBLISH LOCKED (SAFE DEFAULT)</string>
+</resources>
