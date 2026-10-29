@@ -69,6 +69,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify Python Image & Engine Dependencies
+        working-directory: backend/python-engine
+        run: |
+          python -c "from PIL import Image; import instagrapi; print('Image dependencies OK')"
+
       - name: Restore SQLite posted.db & Session Cache
         uses: actions/cache@v4
         with:

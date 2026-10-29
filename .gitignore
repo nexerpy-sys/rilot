@@ -16,3 +16,11 @@
 local.properties
 .env
 debug.keystore
+automation.log
+session.json
+posted.db
+cycle_result.json
+__pycache__/
+*.pyc
+.build-outputs/
+rilot apk/
